@@ -1,0 +1,34 @@
+# Build output
+build/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln
+*.vcxproj*
+.idea/
+cmake-build-*/
+
+# Recompiled output (auto-generated)
+recompiled/*.cpp
+recompiled/*.h
+
+# Game assets (user-provided)
+*.iso
+*.dol
+*.gcm
+assets/*
+!assets/.gitkeep
+
+# Local junctions/symlinks (set up by developer)
+lib/gcrecomp
+tools/recompiler
+
+# OS
+Thumbs.db
+.DS_Store
+*.swp
+*~
