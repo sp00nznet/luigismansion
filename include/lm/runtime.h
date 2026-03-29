@@ -20,10 +20,12 @@ using FuncTable      = gcrecomp::FuncTable;
 using RecompiledFunc = gcrecomp::RecompiledFunc;
 using GameConfig     = gcrecomp::GameConfig;
 
-// ---- Global runtime state (Luigi's Mansion instance) -----------------------
-extern PPCContext g_ctx;
-extern Memory     g_mem;
-extern FuncTable  g_func_table;
+// ---- Global runtime state (aliases to gcrecomp globals) --------------------
+// Recompiled code uses gcrecomp::g_ctx/g_mem/g_func_table directly.
+// These references ensure the launcher and OS HLE operate on the same state.
+extern PPCContext& g_ctx;
+extern Memory&     g_mem;
+extern FuncTable&  g_func_table;
 
 bool runtime_init();
 void runtime_shutdown();

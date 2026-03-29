@@ -25,7 +25,7 @@
 // Auto-generated function registration (from recompiler output)
 // This is defined in recompiled/recomp_funcs.cpp when generated.
 #ifdef LM_HAS_RECOMPILED
-extern void register_recompiled_functions(lm::FuncTable& table);
+extern void register_recompiled_functions(gcrecomp::FuncTable& table);
 #endif
 
 #ifdef _WIN32

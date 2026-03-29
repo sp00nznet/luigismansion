@@ -99,8 +99,12 @@ cmake -B build -G "Visual Studio 17 2022" -A x64
 # Build everything
 cmake --build build --config Release
 
-# Recompile the game (you need the DOL extracted from your ISO)
-./build/lib/gcrecomp/Release/gcrecomp_recompiler.exe main.dol --output recompiled/
+# Recompile the game (needs main.dol + symbols.csv)
+./build/lib/gcrecomp/Release/gcrecomp_recompiler.exe main.dol --csv symbols.csv --output recompiled/ --project LuigisMansion --funcs-per-file 200
+
+# Rebuild with recompiled code
+cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 
 # Inspect the DOL file
 ./build/Release/lm_dol_info.exe main.dol
@@ -124,14 +128,20 @@ cmake --build build --config Release
 - [x] Disc image mounting and raw read API
 - [x] Low-memory initialization via GameConfig (game ID, RAM size, arena, console type)
 - [x] DOL inspector tool (lm_dol_info)
+- [x] Yasiki symbol map import (10,987 functions) with SDA base extraction
+- [x] DOL loader — copies text/data/BSS sections into emulated memory
+- [x] OS function binding — matches symbol names to HLE replacements
+- [x] Game loop and entry point wiring (conditional on recompiled code)
+- [x] Static recompilation pass — 20,068 functions across 101 source files
+- [x] Namespace isolation for recompiled code (`recomp::`) to avoid stdlib collisions
+- [x] Shared globals: lm::g_ctx/g_mem/g_func_table alias gcrecomp:: globals
 
 ### In Progress
 
-1. **Import symbol map** from Yasiki decomp — extract SDA bases (r2/r13), bind OS functions to addresses
-2. **Run recompiler** on main.dol with full symbol coverage
-3. **Load DOL sections** into emulated memory at virtual addresses
-4. **Wire up entry point** — call static constructors, invoke main, set up game loop
-5. **Bring up rendering pipeline** (GX -> D3D11 via gcrecomp)
+1. **Fix 10 missing function stubs** — branch targets discovered by recompiler but not in symbol map
+2. **Complete recompiled code build** — resolve compilation errors in generated code
+3. **Bring up rendering pipeline** (GX -> D3D11 via gcrecomp)
+4. **First boot** — run the game, debug crashes, iterate
 
 ## Standing on the Shoulders of Giants
 

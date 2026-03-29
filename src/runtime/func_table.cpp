@@ -11,7 +11,7 @@
 
 namespace lm {
 
-FuncTable g_func_table;
+FuncTable& g_func_table = gcrecomp::g_func_table;
 
 bool runtime_init() {
     printf("[Runtime] Initializing Luigi's Mansion runtime...\n");
