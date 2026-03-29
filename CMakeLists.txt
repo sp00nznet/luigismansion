@@ -74,12 +74,14 @@ if(LM_BUILD_RUNTIME)
     )
     target_link_libraries(lm_launcher PRIVATE
         lm_runtime
+        gcrecomp_tools
         gcrecomp_gx
         gcrecomp_audio
         gcrecomp_input
     )
     if(TARGET lm_recompiled)
         target_link_libraries(lm_launcher PRIVATE lm_recompiled)
+        target_compile_definitions(lm_launcher PRIVATE LM_HAS_RECOMPILED)
     endif()
     target_include_directories(lm_launcher PRIVATE include)
     if(WIN32)
