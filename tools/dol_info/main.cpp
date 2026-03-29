@@ -1,14 +1,14 @@
 // =============================================================================
-// ww_dol_info - Quick DOL file inspector
+// lm_dol_info - Quick DOL file inspector
 // Dumps section layout, entry point, and basic stats
-// Usage: ww_dol_info <file.dol>
+// Usage: lm_dol_info <file.dol>
 // =============================================================================
 
-#include "ww/dol.h"
-#include "ww/ppc.h"
+#include "gcrecomp/dol.h"
+#include "gcrecomp/ppc.h"
 #include <cstdio>
 
-using namespace ww;
+using namespace gcrecomp;
 
 int main(int argc, char** argv) {
     if (argc < 2) {

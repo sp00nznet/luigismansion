@@ -25,18 +25,10 @@ add_subdirectory(lib/gcrecomp)
 # ===========================================================================
 # Tool: DOL/REL Parser & Static Recompiler
 # ===========================================================================
-if(LM_BUILD_RECOMPILER)
-    add_executable(lm_recompiler
-        tools/recompiler/main.cpp
-        tools/recompiler/dol_parser.cpp
-        tools/recompiler/rel_parser.cpp
-        tools/recompiler/ppc_disasm.cpp
-        tools/recompiler/ppc_to_c.cpp
-        tools/recompiler/cfg_builder.cpp
-        tools/recompiler/symbol_map.cpp
-    )
-    target_include_directories(lm_recompiler PRIVATE include)
-    target_compile_definitions(lm_recompiler PRIVATE LM_TOOL)
+# The recompiler is now provided by gcrecomp (gcrecomp_recompiler).
+# Use: build/lib/gcrecomp/Release/gcrecomp_recompiler.exe main.dol --output recompiled/
+if(LM_BUILD_RECOMPILER AND TARGET gcrecomp_recompiler)
+    # gcrecomp_recompiler is built as part of the gcrecomp subdirectory
 endif()
 
 # ===========================================================================
@@ -79,7 +71,6 @@ if(LM_BUILD_RUNTIME)
     # Main executable (links recompiled code + runtime + gcrecomp libraries)
     add_executable(lm_launcher
         src/main.cpp
-        tools/recompiler/dol_parser.cpp
     )
     target_link_libraries(lm_launcher PRIVATE
         lm_runtime
@@ -102,8 +93,7 @@ endif()
 if(LM_BUILD_TOOLS)
     add_executable(lm_dol_info
         tools/dol_info/main.cpp
-        tools/recompiler/dol_parser.cpp
-        tools/recompiler/ppc_disasm.cpp
     )
+    target_link_libraries(lm_dol_info PRIVATE gcrecomp_tools)
     target_include_directories(lm_dol_info PRIVATE include)
 endif()

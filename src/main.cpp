@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         iso_path = argv[1];
     }
 
-    if (!mount_disc_image(iso_path, &g_mem)) {
+    if (!lm::mount_disc_image(iso_path, &g_mem)) {
         fprintf(stderr, "[Error] Failed to mount disc image: %s\n", iso_path);
         fprintf(stderr, "  Place your GLME01 ISO in the project directory,\n");
         fprintf(stderr, "  or pass the path as a command-line argument.\n");

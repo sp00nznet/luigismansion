@@ -25,8 +25,19 @@ bool runtime_init() {
     // Set initial stack pointer (top of main RAM - some space for OS)
     g_ctx.r[1] = Memory::MAIN_RAM_BASE + Memory::MAIN_RAM_SIZE - 0x100;
 
+    // Luigi's Mansion game configuration (GLME01 — NTSC-U)
+    GameConfig config;
+    std::memcpy(config.game_id, "GLME", 4);
+    std::memcpy(config.company_code, "01", 2);
+    config.disc_number  = 0;
+    config.disc_version = 0;
+    config.ram_size     = 24 * 1024 * 1024;  // Standard GameCube: 24 MB
+    config.console_type = 0x00000001;         // OS_CONSOLE_RETAIL
+    config.arena_lo     = 0x80400000;
+    config.arena_hi     = 0x81700000;
+
     // Initialize Dolphin OS low-memory state (clock speeds, arena, game ID, etc.)
-    init_low_memory(&g_mem);
+    lm::init_low_memory(&g_mem, config);
 
     // Register OS function replacements (Luigi's Mansion-specific HLE)
     register_os_functions();

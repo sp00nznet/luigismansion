@@ -14,10 +14,11 @@
 namespace lm {
 
 // Re-export core types from gcrecomp
-using PPCContext    = gcrecomp::PPCContext;
-using Memory        = gcrecomp::Memory;
-using FuncTable     = gcrecomp::FuncTable;
+using PPCContext     = gcrecomp::PPCContext;
+using Memory         = gcrecomp::Memory;
+using FuncTable      = gcrecomp::FuncTable;
 using RecompiledFunc = gcrecomp::RecompiledFunc;
+using GameConfig     = gcrecomp::GameConfig;
 
 // ---- Global runtime state (Luigi's Mansion instance) -----------------------
 extern PPCContext g_ctx;
@@ -28,7 +29,7 @@ bool runtime_init();
 void runtime_shutdown();
 
 // ---- Luigi's Mansion OS HLE ------------------------------------------------
-void init_low_memory(Memory* mem);
+void init_low_memory(Memory* mem, const GameConfig& config);
 void register_os_functions();
 RecompiledFunc lookup_os_func(const char* name);
 void set_game_root(const std::string& path);

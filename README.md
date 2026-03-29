@@ -96,14 +96,14 @@ runs at full native speed with all compiler optimizations applied.
 # Configure
 cmake -B build -G "Visual Studio 17 2022" -A x64
 
-# Build the recompiler tool
-cmake --build build --target lm_recompiler --config Release
+# Build everything
+cmake --build build --config Release
 
 # Recompile the game (you need the DOL extracted from your ISO)
-./build/Release/lm_recompiler.exe main.dol --output recompiled/
+./build/lib/gcrecomp/Release/gcrecomp_recompiler.exe main.dol --output recompiled/
 
-# Build the game runtime + recompiled code
-cmake --build build --target lm_launcher --config Release
+# Inspect the DOL file
+./build/Release/lm_dol_info.exe main.dol
 
 # Run (place your GLME01 ISO in the project directory)
 ./build/Release/lm_launcher.exe
@@ -113,12 +113,25 @@ cmake --build build --target lm_launcher --config Release
 
 ## Project Status
 
-Early stage. The project structure and runtime layer are in place. Next steps:
+### Completed
 
-1. Import symbol map from Yasiki decomp
-2. Run recompiler on main.dol with full symbol coverage
-3. Patch hardware-dependent functions in recompiled output
-4. Bring up rendering pipeline (GX -> D3D11)
+- [x] Project structure and build system (CMake, MSVC 2022)
+- [x] Runtime layer with PPCContext, Memory, FuncTable (via gcrecomp)
+- [x] OS HLE: 70+ function replacements (timing, interrupts, arena, heap, cache, debug, CRT, math, DVD, threading, mutex, message queues)
+- [x] Video Interface HLE (VIInit, VIConfigure, VIWaitForRetrace, etc.)
+- [x] Memory Card HLE (CARD API — full file I/O backed by host filesystem)
+- [x] Init stubs (OSInit, DVDInit, PSInit, AIInit, DSPInit, __OSInitSystemCall)
+- [x] Disc image mounting and raw read API
+- [x] Low-memory initialization via GameConfig (game ID, RAM size, arena, console type)
+- [x] DOL inspector tool (lm_dol_info)
+
+### In Progress
+
+1. **Import symbol map** from Yasiki decomp — extract SDA bases (r2/r13), bind OS functions to addresses
+2. **Run recompiler** on main.dol with full symbol coverage
+3. **Load DOL sections** into emulated memory at virtual addresses
+4. **Wire up entry point** — call static constructors, invoke main, set up game loop
+5. **Bring up rendering pipeline** (GX -> D3D11 via gcrecomp)
 
 ## Standing on the Shoulders of Giants
 
