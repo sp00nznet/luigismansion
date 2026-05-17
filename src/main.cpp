@@ -21,6 +21,8 @@
 #include <fstream>
 #include <sstream>
 #include <atomic>
+#include <thread>
+#include <chrono>
 
 // Auto-generated function registration (from recompiler output)
 // This is defined in recompiled/recomp_funcs.cpp when generated.
@@ -294,6 +296,21 @@ int main(int argc, char* argv[]) {
         if (sym.name == "__init_user") init_user_addr = addr;
     }
 
+    // Enable function-entry trace so we can see where boot wedges
+    gcrecomp::trace_set_enabled(true);
+    printf("[Main] Function-entry trace enabled (TraceRing).\n");
+
+    // Watchdog: after 10s, dump trace + exit so we can see where the game wedged.
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        printf("\n[Watchdog] 10s elapsed — dumping trace and exiting.\n");
+        fflush(stdout);
+        gcrecomp::trace_dump_recent(64);
+        gcrecomp::trace_dump_summary();
+        fflush(stdout);
+        std::exit(0);
+    }).detach();
+
     // Run static constructors (__init_user calls .ctors)
     if (init_user_addr) {
         printf("[Main] Running static constructors (__init_user @ 0x%08X)...\n", init_user_addr);
@@ -306,6 +323,8 @@ int main(int argc, char* argv[]) {
 
     // If the game's main() returns, we're done
     printf("[Main] Game entry point returned.\n");
+    gcrecomp::trace_dump_recent(32);
+    gcrecomp::trace_dump_summary();
 #else
     printf("[Main] Skipping game execution (no recompiled code).\n");
     printf("[Main] Next steps:\n");

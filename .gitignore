@@ -32,3 +32,6 @@ Thumbs.db
 .DS_Store
 *.swp
 *~
+
+# Local agent state
+.claude/
