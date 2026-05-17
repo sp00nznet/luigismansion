@@ -14,6 +14,7 @@
 #include "lm/runtime.h"
 #include "lm/hw/gc_hw.h"
 #include "lm/hw/os_defs.h"
+#include "gcrecomp/interrupts.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -844,6 +845,32 @@ static void os_init_stub(PPCContext* ctx, Memory* mem) {
     printf("[OS] OSInit\n");
 }
 
+// __OSSetInterruptHandler(s16 id, OSInterruptHandler handler) -> previous handler
+// Signature matches the original at 0x801DDB5C: r3 = interrupt_id (s16),
+// r4 = new handler address (uint32 PPC addr). Returns previous handler in r3.
+//
+// Original behavior writes the entry into the in-memory handler table that
+// the OS's ExternalInterruptHandler dispatcher consults. We replicate that
+// AND mirror the call to gcrecomp's InterruptScheduler so periodic VI fires
+// route to the right place.
+static void os_set_interrupt_handler(PPCContext* ctx, Memory* mem) {
+    int16_t id = (int16_t)ctx->r[3];
+    uint32_t new_handler = ctx->r[4];
+
+    // Per disassembly of __OSSetInterruptHandler @ 0x801DDB5C:
+    //   lwz r3, 5728(r13)   ; r13 is the SDA base; 5728 is the table-base ptr offset
+    //   r5  = r3 + id*4
+    //   r3  = MEM[r5]       ; old handler (return value)
+    //   MEM[r5] = r4        ; store new
+    uint32_t table_base = mem->read32(ctx->r[13] + 5728);
+    uint32_t slot = table_base + (uint32_t)id * 4;
+    uint32_t old_handler = mem->read32(slot);
+    mem->write32(slot, new_handler);
+    ctx->r[3] = old_handler;
+
+    gcrecomp::g_interrupts.set_handler(id, new_handler);
+}
+
 static void dvd_init_stub(PPCContext* ctx, Memory* mem) {
     printf("[DVD] DVDInit\n");
 }
@@ -1280,6 +1307,12 @@ static const OSFuncEntry g_os_func_table[] = {
     { "CARDGetStatus",          card_get_status },
     { "CARDSetStatus",          card_set_status },
     { "CARDDelete",             card_delete },
+
+    // Interrupt handler registration — HLE wrapper so we can mirror every
+    // (id, addr) pair to gcrecomp's interrupt scheduler while still
+    // writing the entry to the game's in-memory handler table (so the
+    // OS's own ExternalInterruptHandler dispatcher continues to work).
+    { "__OSSetInterruptHandler", os_set_interrupt_handler },
 
     { nullptr, nullptr }
 };

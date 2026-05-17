@@ -14,6 +14,7 @@
 #include "lm/input/input.h"
 #include "gcrecomp/dol.h"
 #include "gcrecomp/symbol_map.h"
+#include "gcrecomp/interrupts.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -270,9 +271,8 @@ int main(int argc, char* argv[]) {
 
     // ---- Import symbol map ----------------------------------------------------
     gcrecomp::SymbolMap symbols;
-    if (load_yasiki_symbols(symbol_path, symbols)) {
-        bind_os_functions(symbols);
-    } else {
+    bool have_symbols = load_yasiki_symbols(symbol_path, symbols);
+    if (!have_symbols) {
         fprintf(stderr, "[Warning] No symbol map loaded. OS function binding skipped.\n");
         fprintf(stderr, "  Place symbols.txt in the project directory or provide path via command line.\n\n");
     }
@@ -285,6 +285,25 @@ int main(int argc, char* argv[]) {
     printf("[Main] No recompiled code linked (LM_HAS_RECOMPILED not defined).\n");
     printf("[Main] Run gcrecomp_recompiler on main.dol to generate recompiled/ sources.\n\n");
 #endif
+
+    // OS HLE bindings overwrite the recompiled implementations. Order matters:
+    // recompiled funcs are registered first (covering every symbol), then HLE
+    // bindings overwrite the entries we want to intercept. With this order any
+    // OS function lookup_os_func recognizes is guaranteed to hit the HLE
+    // rather than the recompiled bytes.
+    if (have_symbols) {
+        bind_os_functions(symbols);
+    }
+
+    // Tell gcrecomp's interrupt scheduler which recompiled function is the
+    // OS-level external interrupt dispatcher, then enable periodic firing.
+    for (const auto& [addr, sym] : symbols.symbols) {
+        if (sym.name == "ExternalInterruptHandler") {
+            gcrecomp::g_interrupts.set_external_dispatcher(addr);
+            printf("[Intr] ExternalInterruptHandler @ 0x%08X registered with scheduler.\n", addr);
+            break;
+        }
+    }
 
     // ---- Enter game -----------------------------------------------------------
     printf("[Main] Entry point: 0x%08X\n", GAME_ENTRY_POINT);
@@ -299,6 +318,13 @@ int main(int argc, char* argv[]) {
     // Enable function-entry trace so we can see where boot wedges
     gcrecomp::trace_set_enabled(true);
     printf("[Main] Function-entry trace enabled (TraceRing).\n");
+
+    // Arm the periodic interrupt scheduler. We do this AFTER the game has
+    // had a chance to register its handlers in __init_user (static ctors),
+    // but BEFORE the entry point that runs the game loop and expects vblank
+    // interrupts to wake threads.
+    gcrecomp::g_interrupts.enable();
+    printf("[Intr] Periodic interrupt delivery enabled.\n");
 
     // Watchdog: after 10s, dump trace + exit so we can see where the game wedged.
     std::thread([]() {
