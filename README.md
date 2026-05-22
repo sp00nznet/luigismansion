@@ -175,18 +175,33 @@ back to the last function that was called.
 
 ### Boot trace (current state)
 
-1. Runtime / OS / disc / DOL / symbols all initialize cleanly.
-2. `__init_user @ 0x801E1A20` runs static constructors (20+ ctors execute).
-3. Entry point `__start @ 0x80003100` is called.
-4. `__OSInitAudioSystem @ 0x801DAF70` completes — the DSP mailbox poll now passes via state-machine HLE in `gcrecomp::Memory`.
-5. OS thread system bring-up (`OSSetCurrentContext`, scheduler init).
-6. `OSEnableInterrupts @ 0x801DDB24` is called — the game is now "running".
-7. Wedges polling `RunQueueBits` (0x804D95F8, `.sbss`) — the scheduler's ready-queue bitmask. Waiting for an interrupt to mark a thread runnable.
+1. ✅ Runtime / OS / disc / DOL / symbols all initialize cleanly.
+2. ✅ `__init_user @ 0x801E1A20` runs static constructors (20+ ctors execute).
+3. ✅ Entry point `__start @ 0x80003100` is called.
+4. ✅ `__OSInitAudioSystem @ 0x801DAF70` completes — DSP mailbox poll passes via state-machine HLE in `gcrecomp::Memory`.
+5. ✅ OS thread system bring-up (`OSSetCurrentContext`, scheduler init).
+6. ✅ `OSEnableInterrupts @ 0x801DDB24` is called — the game is now "running".
+7. ✅ **Periodic VI vblank interrupts now fire** — gcrecomp's `InterruptScheduler` (cooperative, hooks into `Memory::translate`) invokes `ExternalInterruptHandler @ 0x801DE2E4` at ~60 Hz with the full `PPCContext` snapshotted around the call.
+8. ❌ Wedges polling `RunQueueBits` (0x804D95F8, `.sbss`). The dispatcher fires but the **OS interrupt handler table is never initialized** — `MEM[0x804D8540]` (the table-base pointer at SDA+5728) stays `0x00000000` for the entire run, so the dispatcher's `bclrl` to the registered handler goes nowhere and no thread is ever marked runnable.
 
-The next blocker is **interrupt delivery**: nothing is firing the VI vblank
-handler or the timer interrupt, so no thread ever becomes runnable. The fix is
-a background thread in the launcher (or in `gcrecomp_runtime`) that periodically
-invokes the registered VI vblank interrupt handler through the function table.
+The next investigation is **why the handler table is uninitialized**. Either
+`OSInit` doesn't run on this boot path (`__start → __init_hardware → ??`),
+or it runs but uses a different table location, or some piece of the OS init
+sequence lives in code the recompiler missed. The fallback option is to
+skip the OS dispatcher entirely and synthesize the VI handler's effect from
+the launcher — write `RunQueueBits |= 1` directly to unstick the idle poll.
+
+### Critical architecture note
+
+Recompiled `bl X` instructions emit a **direct C++ call** to `recomp::X(ctx, mem)`.
+They do *not* consult `g_func_table`. The function table is only used by
+`CALL_INDIRECT` (bctrl, blrl, mtctr+bctr, mtlr+bclrl) and by the launcher's
+top-level entries. So `bind_os_functions` only intercepts indirect calls —
+a direct `bl OSWhatever` from one recompiled function to another runs the
+recompiled body, never the HLE. To intercept a function called via direct
+`bl`, you have to either edit the recompiled source, or HLE at a higher
+level (intercept the caller), or change the recompiler's `bl` emission to
+conditionally consult the func table for a known list of names.
 
 ### Recent recompiler / runtime improvements
 
@@ -214,6 +229,14 @@ toolkit:
 - **TraceRing + `--trace` codegen** — lock-free 4096-entry function-entry ring
   that you can dump from anywhere. Pairs with the launcher's watchdog to give
   you a precise call-tail whenever the recompiled code wedges.
+- **Cooperative interrupt scheduler** — `gcrecomp::InterruptScheduler` (in
+  `gcrecomp/interrupts.h` + `src/runtime/interrupts.cpp`). Hooks into
+  `Memory::translate`; once every `ops_per_frame` ticks, sets the PI cause
+  + mask VI bit and calls the registered external dispatcher synchronously
+  with the active `PPCContext`. Snapshots and restores the full register
+  file around the dispatcher call so handler clobber doesn't leak into the
+  interrupted code (the recompiled handler itself only saves r29-r31 — a
+  real PPC exception entry would have saved everything else).
 
 ## Standing on the Shoulders of Giants
 
